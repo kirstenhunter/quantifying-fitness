@@ -12,6 +12,7 @@ module.exports.index = function(req, res) {
 // Page where a user can enter their cell phone number after signing in
 module.exports.showUser = function(req, res) {
 	// Retrieve the user's information from the session
+	alert(req.session.passport.user.id);
 	User.find().where('encodedId').equals(req.session.passport.user.id).findOne(
 		function(err, user) {
 			if (err) {
