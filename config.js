@@ -1,11 +1,12 @@
 module.exports = {
 	production: {
-		db: 'TODO', // MongoDB connection string, ex: mongodb://db-user:db-password@mongo.onmodulus.net:27017/1234567
-		fitbitClientKey: 'TODO', // Your Fitbit application information found at https://dev.fitbit.com/apps
-		fitbitClientSecret: 'TODO',
-		host: 'TODO', // The hostname where this application is available publicly, ex: fitbitexample-9501.onmodulus.net
-		twilioAccountSid: 'TODO', // Found on your Twilio account page: https://www.twilio.com/user/account
-		twilioAuthToken: 'TODO',
-		twilioPhoneNumber: 'TODO' // The Twilio number that SMS will be sent from, ex: +14152363281
+		db: 'mongodb://heroku7926883af05244d1c3a8b51@kahana.mongohq.com:10005/app29516722',
+		fitbitClientKey: '152d21adfadd4511a1915b47e63b0636', 
+		fitbitClientSecret: '7adb7e6d8e394cad9daacc1372fbfcfb',
+		host: 'http://young-woodland-4547.herokuapp.com' ,
+                twilioAccountSid: 'AC80f1b83ec7f84c4fbf7977330b503745',
+                twilioAuthToken: 'ac026657401b239fdce4d14c182820fe',
+                twilioPhoneNumber: '+1 831-216-1666'
+
 	}
 };
