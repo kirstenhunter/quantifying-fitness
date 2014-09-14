@@ -3,6 +3,7 @@ var fs = require('fs'),
 	mongoose = require('mongoose'),
 	User = mongoose.model('User'),
 	Twilio = require('./twilio-api'),
+	Hue    = require('./philips-api'),
 	moment = require('moment'),
 	env = process.env.NODE_ENV || 'production',
 	config = require('../config')[env];
@@ -69,24 +70,91 @@ function updateUserSteps(encodedId, callback) {
 	);
 };
 
-function motivateUserCallback(err, user) {
+function updateUserFoods(encodedId, callback) {
+        console.log("updateUserSteps for", encodedId);
+
+        User.findOne(
+                {
+                        'encodedId': encodedId
+                },
+                function(err, user) {
+                        if (err) {
+                                console.error("Error finding user", err);
+                                callback(err);
+                                return;
+                        }
+
+                        // Get updated steps from Fitbit API
+                        oauth.get(
+                                'https://api.fitbit.com/1/user/-/foods/date/' + moment().utc().add('ms', user.timezoneOffset).format('YYYY-MM-DD') + '.json',
+                                user.accessToken,
+                                user.accessSecret,
+                                function (err, data, res) {
+                                        if (err) {
+                                                console.error("Error fetching activity data. ", err);
+                                                callback(err);
+                                                return;
+                                        }
+
+                                        data = JSON.parse(data);
+                                        console.log("Fitbit Get Activities", data);
+
+                                        // Update (and return) the user
+                                        User.findOneAndUpdate(
+                                                {
+                                                        encodedId: user.encodedId
+                                                },
+                                                {
+                                                        proteinToday: data.summary.protein,
+                                                        fiberToday: data.summary.fiber
+                                                },
+                                                null,
+                                                function(err, user) {
+                                                        if (err) {
+                                                                console.error("Error updating user activity.", err);
+                                                        }
+                                                        callback(err, user);
+                                                }
+                                        );
+                                }
+                        );
+                }
+        );
+};
+
+function updateLightsCallback(err, user) {
 	if (err) {
-		console.error('motivateUserCallback error:', err);
+		console.error('updateLightsCallback error:', err);
 		return;
 	}
 
 	var smsBody = '';
 
-	if (user.stepsToday > user.stepsGoal) {
-		smsBody = 'Overachiever! You are ' + (user.stepsToday - user.stepsGoal) + ' over your daily goal of ' + user.stepsGoal + ' steps!';
-	} else {
-		var stepsRemaining = user.stepsGoal - user.stepsToday;
+	console.log("Hue.updateLights", user.proteinToday, user.fiberToday);
+ 	Hue.updateLights(2,user.proteinToday, 80);
+ 	Hue.updateLights(3,user.fiberToday, 20);
+}
 
-		smsBody = 'Keep it up! ' + stepsRemaining + ' to go today.';
-	}
+function motivateUserCallback(err, user) {
+        if (err) {
+                console.error('motivateUserCallback error:', err);
+                return;
+        }
 
-	// console.log("Twilio.sendSms", user.phoneNumber, smsBody);
-	Twilio.sendSms(user.phoneNumber, smsBody);
+        var smsBody = '';
+
+        if (user.stepsToday > user.stepsGoal) {
+                smsBody = 'Overachiever! You are ' + (user.stepsToday - user.stepsGoal) + ' over your daily goal of ' + user.stepsGoal + ' steps!';
+        } else {
+                var stepsRemaining = user.stepsGoal - user.stepsToday;
+
+                smsBody = 'Keep it up! ' + stepsRemaining + ' to go today.';
+        }
+
+        console.log("Twilio.sendSms", user.phoneNumber, smsBody);
+        Twilio.sendSms(user.phoneNumber, smsBody);
+	console.log("Hue.updateLights", user.stepsToday, user.stepsGoal);
+        Hue.updateLights(1,user.stepsToday/user.stepsGoal);
 }
 
 function notificationsReceived(req, res) {
@@ -99,19 +167,10 @@ function notificationsReceived(req, res) {
 		if (err) console.error(err);
 		data = JSON.parse(data);
 
-		// [
-		// 	 {
-		// 		collectionType: 'activities',
-		// 		date: '2013-10-21',
-		// 		ownerId: '23RJ9B',
-		// 		ownerType: 'user',
-		// 		subscriptionId: '23RJ9B-all'
-		// 	}
-		// ]
-
 		for (var i = 0; i < data.length; i++) {
 			console.log(data[i]);
 			updateUserSteps(data[i].ownerId, motivateUserCallback);
+			updateUserFoods(data[i].ownerId, updateLightsCallback);
 		}
 	});
 };
