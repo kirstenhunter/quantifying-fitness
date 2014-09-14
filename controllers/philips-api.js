@@ -28,5 +28,10 @@ var displayResult = function(result) {
 };
 
 module.exports.updateLights = function(light, today, goal) {
-	hue.locateBridges().then(getSummary).done();
+	huenumber = 140 * (today/goal);
+	state = lightState.create().on().hsl(huenumber, 100, 50);
+        api.setLightState(light, state)
+            .then(displayResult)
+            .done();
+
 };
