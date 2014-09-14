@@ -86,18 +86,18 @@ function updateUserFoods(encodedId, callback) {
 
                         // Get updated steps from Fitbit API
                         oauth.get(
-                                'https://api.fitbit.com/1/user/-/foods/date/' + moment().utc().add('ms', user.timezoneOffset).format('YYYY-MM-DD') + '.json',
+                                'https://api.fitbit.com/1/user/-/foods/log/date/' + moment().utc().add('ms', user.timezoneOffset).format('YYYY-MM-DD') + '.json',
                                 user.accessToken,
                                 user.accessSecret,
                                 function (err, data, res) {
                                         if (err) {
-                                                console.error("Error fetching activity data. ", err);
+                                                console.error("Error fetching foods data. ", err);
                                                 callback(err);
                                                 return;
                                         }
 
                                         data = JSON.parse(data);
-                                        console.log("Fitbit Get Activities", data);
+                                        console.log("Fitbit Get Foods", data);
 
                                         // Update (and return) the user
                                         User.findOneAndUpdate(
@@ -111,7 +111,7 @@ function updateUserFoods(encodedId, callback) {
                                                 null,
                                                 function(err, user) {
                                                         if (err) {
-                                                                console.error("Error updating user activity.", err);
+                                                                console.error("Error updating food activity.", err);
                                                         }
                                                         callback(err, user);
                                                 }

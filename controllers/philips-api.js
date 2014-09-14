@@ -1,37 +1,41 @@
 var env = process.env.NODE_ENV || 'production',
-	config = require('../config')[env],
-	hue = require("node-hue-api"), HueApi = hue.HueApi, lightState = hue.lightState; 
+	config = require('../config')[env];
+var HueRemote = require('node-hue-remote');
 
-var user = '20e735514fe29773a27f3857d377ab'
+var hue = new HueRemote({
+  'account' : {
+    'email': 'synedra@gmail.com',
+    'password': '3urfew'
+  }
+});
+
 var api;
-
-var getSummary = function(bridge) {
-    console.log(JSON.stringify(bridge));
-    var hostname = bridge[0].ipaddress;
-    console.log(bridge[0].ipaddress);
-    var username = user;
-
-    api = new HueApi(hostname, username);
-    changeColors(light, today, goal);
-};
-
-var changeColors = function(light,today,goal) {
-    huenumber = today/goal*140;
-    state = lightState.create().on().hsl(huenumber, 100, 50)
-    	api.setLightState(light, state)
-	    .then(displayResult)
-	    .done();
-};
 
 var displayResult = function(result) {
     console.log(JSON.stringify(result, null, 2));
 };
 
-module.exports.updateLights = function(light, today, goal) {
-	huenumber = 140 * (today/goal);
-	state = lightState.create().on().hsl(huenumber, 100, 50);
-        api.setLightState(light, state)
-            .then(displayResult)
-            .done();
-
+var displayError = function(err) {
+    console.log(err);
 };
+
+module.exports.updateLights = function(light, today, goal) {
+	hue.sendCommand({
+
+	  	'url' : '/api/0/lights/' + light + '/state',
+  		'method' : 'PUT',
+  		'body' : {
+  		  'bri' : '255',
+		  'hue' : 36210 * today/goal
+  		}
+}, function (error, sessionId, bridgeId, accessToken, body) {
+  var response = JSON.parse(body);
+  if (error || (response.result !== 'ok')) {
+    throw new Error(error || body);
+  }
+  // save to cache.
+  hue.setSessionId(sessionId);
+  hue.setBridgeId(bridgeId);
+  hue.setAccessToken(accessToken);
+})};
+
