@@ -10,6 +10,8 @@ var UserSchema = new Schema({
 	lastSync: Date,
 	stepsToday: Number,
 	stepsGoal: Number,
+	proteinToday: Number,
+	proteinGoal: Number,
 	phoneNumber: String,
 	timezoneOffset: Number
 });
