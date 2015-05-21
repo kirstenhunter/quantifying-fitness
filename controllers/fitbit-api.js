@@ -25,19 +25,10 @@ var proteinGoalGlobal  = 0;
 var currentTime;
 var currentHours;
 
-//var twitter_oauth = new OAuth.OAuth(
-//	'https://api.fitbit.com/oauth/request_token',
-//	'https://api.fitbit.com/oauth/access_token',
-//	config.fitbitClientKey,
-//	config.fitbitClientSecret,
-//	'1.0',
-//	null,
-//	'HMAC-SHA1'
-//);
-
 function updateUserData(encodedId, callback) {
 	console.log("updateUserData for", encodedId);
-	currentTime = new Date();
+	var currentTime = new Date();
+	
 	currentHours = currentTime.getHours();
 	console.log("currentHours", currentHours);
 
@@ -46,7 +37,7 @@ function updateUserData(encodedId, callback) {
 		currentHours -= 24;
 	}
 	console.log("currentHours", currentHours);
-
+	
 	if ((currentHours > 12) || (currentHours < 1)) {
 		return;
 	}
@@ -75,7 +66,7 @@ function updateUserData(encodedId, callback) {
 					}
 
 					data = JSON.parse(data);
-					
+
 					stepsTodayGlobal = data.summary.steps;
 					stepsGoalGlobal = data.goals.steps;
 
@@ -193,31 +184,30 @@ function motivateUserCallback(err, user) {
 	// First, figure out what the percentage is
 
 	var totalPercentage = (proteinPercentage + stepsPercentage) / 2;
+	var currentTime = new Date();
+	var seconds = currentTime.getTime();
 
 	if (totalPercentage < 25) {
-		twitstring = 'synedra0';
+		twitstring = 'synedra0 ' + seconds;
 	} else if (totalPercentage < 50) {
-		twitstring = 'synedra1';
+		twitstring = 'synedra1 ' + seconds;
 	} else if (totalPercentage < 75) {
-		twitstring = 'synedra2';
+		twitstring = 'synedra2 ' + seconds;
 	} else {
-		twitstring = 'synedra3';
+		twitstring = 'synedra3 ' + seconds;
 	}
+	console.log("Twitstring: " + twitstring);
 
 	var Twitter = require('twit');
 	var twitter = new Twitter({
-   		consumer_key: '7fMGeCuccQGsKxap1Ho7y2Usj',
-  		consumer_secret: 'bFuQ29yq1dPZLdMplkXbjUiuliiooNMwAEmeFG8UoJ9mscYPNv',
-  		access_token: '2567964464-MNvWWWPD0gm0YaQ28tD9X0ML1885dr7TXGZkzVZ',
-  		access_token_secret: 'JSkyNEvcF1SdMIqNYVqueqzT2tE8RejESlGWGfsqjUkUR'
+   		consumer_key: '',
+  		consumer_secret: '',
+  		access_token: '',
+  		access_token_secret: ''
 	});
 
 	twitter.post('statuses/update', { status: twitstring }, function(err, data, response) {
   		console.log(data);
-  		console.log('Error: ' + err);
-  		console.error('response status:', err.statusCode);
-  		console.error('data:', err.data);
-  		console.log('Response: ' + response);
 	});
 }
 
