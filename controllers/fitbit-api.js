@@ -38,9 +38,9 @@ function updateUserData(encodedId, callback) {
 	}
 	console.log("currentHours", currentHours);
 	
-	if ((currentHours > 12) || (currentHours < 1)) {
-		return;
-	}
+	//if ((currentHours > 12) || (currentHours < 1)) {
+	//	return;
+	//}
 
 	User.findOne(
 		{
@@ -53,82 +53,58 @@ function updateUserData(encodedId, callback) {
 				return;
 			}
 
-			// Get updated steps from Fitbit API
-			fitbit_oauth.get(
-				'https://api.fitbit.com/1/user/-/activities/date/' + moment().utc().add('ms', user.timezoneOffset).format('YYYY-MM-DD') + '.json',
-				user.accessToken,
-				user.accessSecret,
-				function (err, data, res) {
-					if (err) {
-						console.error("Error fetching activity data. ", err);
-						callback(err);
-						return;
-					}
+			foodpath = 'https://api.fitbit.com/1/user/-/foods/log/date/' + moment().utc().add('ms', user.timezoneOffset).format('YYYY-MM-DD') + '.json';
+			activitypath = 'https://api.fitbit.com/1/user/-/activities/date/' + moment().utc().add('ms', user.timezoneOffset).format('YYYY-MM-DD') + '.json';
 
-					data = JSON.parse(data);
-
-					stepsTodayGlobal = data.summary.steps;
-					stepsGoalGlobal = data.goals.steps;
-
-					console.log("Fitbit Get Activities", data);
-
-					// Update (and return) the user
-					User.findOneAndUpdate(
-						{
-							encodedId: user.encodedId
-						},
-						{
-							stepsToday: data.summary.steps,
-							stepsGoal: data.goals.steps
-						},
-						null,
-						function(err, user) {
-							if (err) {
-								console.error("Error updating user activity.", err);
-							}
+			function fitbit_oauth_getP(path, accessToken, accessSecret) {
+				return new Promise (function(resolve, reject) {
+					fitbit_oauth.get(path, accessToken, accessSecret, function(err, data, res) {
+						if (err) {
+							reject(err);
+						} else {
+							resolve(data);
 						}
-					);
-				}
-			);
-
-			fitbit_oauth.get(
-				'https://api.fitbit.com/1/user/-/foods/log/date/' + moment().utc().add('ms', user.timezoneOffset).format('YYYY-MM-DD') + '.json',
-				user.accessToken,
-				user.accessSecret,
-				function (err, data, res) {
-					if (err) {
-						console.error("Error fetching food data. ", err);
-						callback(err);
-						return;
 					}
+				)
+			})};
 
-					data = JSON.parse(data);
-					proteinTodayGlobal = data.summary.protein;
-					proteinGoalGlobal = config.fitbitProteinTarget;
+			Promise.all([fitbit_oauth_getP(foodpath, user.accessToken, user.accessSecret), 
+						 fitbit_oauth_getP(activitypath, user.accessToken, user.accessSecret)])
+						 .then(function(arrayOfResults) {
+						console.log(arrayOfResults);
+				    
+						foodObject = JSON.parse(arrayOfResults[0]);
+						activityObject = JSON.parse(arrayOfResults[1]);
 
-					console.log("Fitbit Get Food", data);
+						console.log(activityObject.summary.steps);
+						console.log(activityObject.goals.steps);
+						console.log(foodObject.summary.protein);
+						console.log(config.fitbitProteinTarget);
+						
 
-					// Update (and return) the user
-					User.findOneAndUpdate(
-						{
-							encodedId: user.encodedId
-						},
-						{
-							proteinToday: data.summary.protein,
-							proteinGoal: config.fitbitProteinTarget
-						},
-						null,
-						function(err, user) {
-							if (err) {
-								console.error("Error updating user food.", err);
+						console.log("Fitbit Got Activities and Food");
+
+						User.findOneAndUpdate(
+							{
+								encodedId: user.encodedId
+							},
+							{
+								stepsToday: activityObject.summary.steps,
+								stepsGoal: activityObject.goals.steps,
+								proteinToday: foodObject.summary.protein,
+								proteinGoal: config.fitbitProteinTarget
+							},
+							null,
+							function(err, user) {
+								if (err) {
+									console.error("Error updating user activity.", err);
+								}
+								callback(err, user);
 							}
-							callback(err, user);
-						}
-					);
-				}
-			);
-
-		}
+						);
+					}
+				);
+			}
 	);
 };
 
@@ -142,23 +118,18 @@ function motivateUserCallback(err, user) {
 	// 12 hours we're checking
 	var smsBody = '';
 
-	checkTime = currentHours;
-	console.log("checkTime", checkTime);
-	
+	var checkTime = currentHours;
 	var percentageCheck = checkTime * 8.25;
-	console.log("Percentage Check", percentageCheck);
+	var stepsPercentage = user.stepsToday / user.stepsGoal * 100;
+	var proteinPercentage = user.proteinToday / user.proteinGoal * 100;
 
-	// Percentage of steps (compare to 8.25 * Hour - 9)
-	var stepsPercentage = stepsTodayGlobal / stepsGoalGlobal * 100;
+	console.log("checkTime", checkTime);
+	console.log("Percentage Check", percentageCheck);
+	console.log("Protein Percentage", proteinPercentage);
 	console.log("Steps Percentage", stepsPercentage);
 
-	// Percentage of protein (compare to 8.25 * Hour - 9)
-	var proteinPercentage = user.proteinToday / user.proteinGoal * 100;
-	console.log("Protein Percentage", proteinPercentage);
-
-
 	if (stepsPercentage < percentageCheck) {
-		var stepsRemaining = stepsGoalGlobal - stepsTodayGlobal;
+		var stepsRemaining = user.stepsGoal - user.stepsToday;
 
 		smsBody += 'Get Moving! ' + stepsRemaining + ' steps to go today. ' + stepsPercentage + '% of the way there!\n';
 	}
@@ -171,7 +142,7 @@ function motivateUserCallback(err, user) {
 		smsBody += 'Log your foods! ' + proteinRemaining + ' grams of protein to go today. ' + proteinPercentage + '% of the way there!';
 	} else {
 		if (smsBody != '') {
-			smsBody += 'Great job on the protein today! ' + user.proteinToday + ' steps so far today\n';
+			smsBody += 'Great job on the protein today! ' + user.proteinToday + ' protein so far today\n';
 		}
 	}
 
@@ -201,7 +172,7 @@ function motivateUserCallback(err, user) {
 	var Twitter = require('twit');
 	var twitter = new Twitter({
    		consumer_key: '',
-  		consumer_secret: '',
+ 		consumer_secret: '',
   		access_token: '',
   		access_token_secret: ''
 	});
