@@ -7,13 +7,16 @@ var UserSchema = new Schema({
 	encodedId: {type: String, required: true, index: true, unique: true},
 	accessToken: {type: String, required: true},
 	accessSecret: {type: String, required: true},
-	lastSync: Date,
-	stepsToday: Number,
-	stepsGoal: Number,
-	proteinToday: Number,
-	proteinGoal: Number,
 	phoneNumber: String,
-	timezoneOffset: Number
+	timezoneOffset: Number,
+	lastSync: String,
+	activityGoal: String,
+	proteinGoal: String,
+	waterGoal: String,
+	lastprotein: String,
+	lastwater: String,
+	lastactivity: String
 });
+
 
 var User = mongoose.model('User', UserSchema);

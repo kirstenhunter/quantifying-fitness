@@ -35,10 +35,7 @@ passport.use(new FitbitStrategy({
 				encodedId: profile.id,
 				accessToken: token,
 				accessSecret: tokenSecret,
-				timezoneOffset: profile._json.user.offsetFromUTCMillis,
-				proteinGoal: 80,
-				activityGoal: 2200,
-				waterGoal: 2000
+				timezoneOffset: profile._json.user.offsetFromUTCMillis
 			},
 			{ upsert: true },
 			function(err, numberAffected) {

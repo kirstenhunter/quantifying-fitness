@@ -43,15 +43,15 @@ var IndexController = require('./controllers/index'),
 // Define routes
 // Index and Notification routes
 app.get('/', IndexController.index);
-app.get('/phone', IndexController.showUser);
-app.post('/phone', IndexController.saveUser);
+app.get('/userinfo', IndexController.showUser);
+app.post('/userinfo', IndexController.saveUser);
 app.post('/notifications', FitbitApiController.notificationsReceived);
 // OAuth routes
 app.get('/auth/fitbit', passport.authenticate('fitbit'));
 app.get('/auth/fitbit/callback', passport.authenticate('fitbit', { failureRedirect: '/?error=auth_failed' }),
 	function(req, res) {
 		// Successful authentication, redirect home.
-		res.redirect('/phone');
+		res.redirect('/userinfo');
 	}
 );
 

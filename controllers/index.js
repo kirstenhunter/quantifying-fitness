@@ -15,13 +15,17 @@ module.exports.showUser = function(req, res) {
 	User.find().where('encodedId').equals(req.session.passport.user.id).findOne(
 		function(err, user) {
 			if (err) {
+				console.log(err);
 				res.send(500);
 				return;
 			}
 
 			// Pass the user's info to the template
-			res.render('../views/phone.ejs', {
+			res.render('../views/userinfo.ejs', {
 				phoneNumber: user.phoneNumber,
+				activity: user.activityGoal,
+				protein: user.proteinGoal,
+				water: user.waterGoal,
 				message: ''
 			});
 		}
@@ -31,24 +35,32 @@ module.exports.showUser = function(req, res) {
 // POST version of showUsers page. Where the form on the showUser page submits to.
 module.exports.saveUser = function(req, res) {
 	// Save the user's cell phone number
+
 	User.findOneAndUpdate(
 		{
 			encodedId: req.session.passport.user.id
 		},
 		{
-			phoneNumber: req.body.phoneNumber
+			phoneNumber: req.body.phoneNumber,
+			activityGoal: req.body.activity,
+			proteinGoal: req.body.protein,
+			waterGoal: req.body.water
 		},
 		null,
 		function(err, user) {
 			if (err) {
+				console.log(err);
 				res.send(500);
 				return;
 			}
-
+			console.log(user);
 			// Display the phone number and confirmation message
-			res.render('../views/phone.ejs', {
+			res.render('../views/userinfo.ejs', {
 				phoneNumber: user.phoneNumber,
-				message: "Cell phone number saved!"
+				activity: user.activityGoal,
+				protein: user.proteinGoal,
+				water: user.waterGoal,
+				message: "User info saved!"
 			});
 		}
 	);

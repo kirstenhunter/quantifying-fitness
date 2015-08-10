@@ -17,12 +17,59 @@ var fitbit_oauth = new OAuth.OAuth(
 	'HMAC-SHA1'
 );
 
-var lastUpdate;
+var logConfig = {
+	activity : {
+		path : "/activities/",
+		object : "summary.caloriesOut",
+		frequency : "onUpdate",
+		priority : 3
+	},
+	protein : {
+		path : "/foods/log/",
+		object : "summary.protein",
+		frequency : "onUpdate",
+		priority : 3
+	},
+	water : {
+		path : "/foods/log/water/",
+		object : "summary.water",
+		frequency : "onUpdate",
+		priority : 2
+	},
+	bodyfat : {
+		path : "/body/log/fat/",
+		object : "fat.fat",
+		frequency : "daily",
+		priority : 3
+	},
+	resting_heartrate : {
+		path : "/activities/heart/",
+		object : "activities-heart.value.restingHeartRate",
+		frequency : "daily",
+		priority : 3
+	}
+}
+
+var stepsTodayGlobal = 0;
+var stepsGoalGlobal  = 0;
+var proteinTodayGlobal = 0;
+var proteinGoalGlobal  = 0;
+
 var currentTime;
 var currentHours;
 
-function updateUserData(encodedId, calldate, callback) {
+function updateUserData(encodedId, callback) {
 	console.log("updateUserData for", encodedId);
+	var currentTime = new Date();
+	
+	currentHours = currentTime.getHours();
+	console.log("currentHours", currentHours);
+
+	currentHours += 8;
+	if (currentHours >= 24) {
+		currentHours -= 24;
+	}
+	console.log("currentHours", currentHours);
 
 	User.findOne(
 		{
@@ -35,45 +82,40 @@ function updateUserData(encodedId, calldate, callback) {
 				return;
 			}
 
-				function fitbit_oauth_getP(path) {
+			function fitbit_oath_getP (path) {
 				return new Promise (function(resolve, reject) {
-					fitbit_oauth.get(path, user.accessToken, user.accessSecret, function(err, data, res) {
+						fitbit_oauth.get(path, user.accessToken, user.accessSecret, function(err, data, res) {
 						if (err) {
-							console.log(path);
 							console.log(err);
 							reject(err);
 						} else {
-							console.log(path);
-							console.log(data);
 							resolve(data);
 						}
 					}
-				)
-			})};
+				)})};
 
-
-			date = moment().utc().add('ms', user.timezoneOffset).format('YYYY-MM-DD');
-
-			prefix = 'https://api.fitbit.com/1/user/-';
+			date = moment().utc().add('ms', user.timezoneOffset).format('YYYY-MM-DD') + '.json';
+			prefix = 'https://api.fitbit.com/1/user/-'
 
 			Promise.all([
-							fitbit_oauth_getP(prefix + "/foods/log/date/" + date + '.json'),
-							fitbit_oauth_getP(prefix + "/activities/date/" + date + '.json')
+							fitbit_oauth_getP(prefix + "/activities/heart/" + date),
+							fitbit_oauth_getP(prefix + "/body/log/fat/" + date),
+							fitbit_oauth_getP(prefix + "/foods/log/water/" + date),
+							fitbit_oauth_getP(prefix + "/foods/log/" + date),
+							fitbit_oauth_getP(prefix + "/activities/" + date)
 						])
 						 .then(function(arrayOfResults) {
 						console.log(arrayOfResults);
-				    	
-				    	console.log(user.activityGoal);
-				    	food = JSON.parse(arrayOfResults[0]);
-				    	water = food["summary"]["water"];
-				    	protein = food["summary"]["protein"]
-				    	activity = JSON.parse(arrayOfResults[1])["summary"]["caloriesOut"];
-				    	previousactivity = user.lastactivity;
+				    
+						foodObject = JSON.parse(arrayOfResults[0]);
+						activityObject = JSON.parse(arrayOfResults[1]);
 
-						console.log("protein: " + protein + " / " + user.proteinGoal);
-						console.log("calories: " + activity + " / " + user.activityGoal);
-						console.log("water: " + water + " / " + user.waterGoal);
+						console.log(activityObject.summary.steps);
+						console.log(activityObject.goals.steps);
+						console.log(foodObject.summary.protein);
+						console.log(config.fitbitProteinTarget);
 						
+
 						console.log("Fitbit Got Activities and Food");
 
 						User.findOneAndUpdate(
@@ -81,9 +123,10 @@ function updateUserData(encodedId, calldate, callback) {
 								encodedId: user.encodedId
 							},
 							{
-								lastactivity: activity,
-								lastprotein: protein,
-								lastwater: water
+								stepsToday: activityObject.summary.steps,
+								stepsGoal: activityObject.goals.steps,
+								proteinToday: foodObject.summary.protein,
+								proteinGoal: config.fitbitProteinTarget
 							},
 							null,
 							function(err, user) {
@@ -101,63 +144,33 @@ function motivateUserCallback(err, user) {
 		return;
 	}
 
-	if (previousactivity == activity) {
-		console.log ("No activity since last update, bailing");
-		return;
-	}
-
 	// 12 hours we're checking
-	var currentTime = new Date();
-	
-	currentHours = currentTime.getHours();
-	console.log("currentHours", currentHours);
-
-	currentHours += 8;
-	if (currentHours >= 24) {
-		currentHours -= 24;
-	}
-	console.log("currentHours", currentHours);
-
 	var smsBody = '';
 
 	var checkTime = currentHours;
 	var percentageCheck = checkTime * 8.25;
-	var activityPercentage = user.lastactivity / user.activityGoal * 100;
-	var proteinPercentage = user.lastprotein / user.proteinGoal * 100;
-	var waterPercentage = user.lastwater / user.waterGoal * 100;
+	var stepsPercentage = user.stepsToday / user.stepsGoal * 100;
+	var proteinPercentage = user.proteinToday / user.proteinGoal * 100;
 
 	console.log("checkTime", checkTime);
 	console.log("Percentage Check", percentageCheck);
 	console.log("Protein Percentage", proteinPercentage);
-	console.log("Calorie Percentage", activityPercentage);
-	smsBody = [];
+	console.log("Steps Percentage", stepsPercentage);
+	console.log("Steps Today", user.stepsToday);
+	console.log("Steps Goal", user.stepsGoal);
 
-	if (activityPercentage < percentageCheck) {
-		var activityRemaining = user.activityGoal - user.lastactivity;
+	if (stepsPercentage < percentageCheck) {
+		var stepsRemaining = user.stepsGoal - user.stepsToday;
 
-		smsBody.push(activityRemaining + ' calories to go today. ' 
-			+ activityPercentage + '% of the way there!');
+		smsBody += 'Get Moving! ' + stepsRemaining + ' steps to go today. ' + stepsPercentage + '% of the way there!\n';
 	}
 
 	if (proteinPercentage < percentageCheck) {
-		var proteinRemaining = user.proteinGoal - user.lastprotein;
-
-		smsBody.push(proteinRemaining + ' grams of protein to go today. ' 
-			+ proteinPercentage + '% of the way there!');
-	}
-
-	if (waterPercentage < percentageCheck) {
-		var waterRemaining = user.waterGoal - user.lastwater;
-
-		smsBody.push(waterRemaining + ' ml of water to go today. ' 
-			+ waterPercentage + '% of the way there!');
-	}
-
-	smsMessage = smsBody.join('\n');
-
-	if (proteinPercentage < percentageCheck) {
-		var proteinRemaining = user.proteinGoal - user.lastprotein;
-		smsBody.append += 'Log your foods! ' + proteinRemaining + ' grams of protein to go today. ' + proteinPercentage + '% of the way there!';
+		var proteinRemaining = user.proteinGoal - user.proteinToday;
+		if (smsBody == '') {
+			smsBody = 'Great job moving today! ' + user.stepsToday + ' steps so far today\n';
+		}
+		smsBody += 'Log your foods! ' + proteinRemaining + ' grams of protein to go today. ' + proteinPercentage + '% of the way there!';
 	} else {
 		if (smsBody != '') {
 			smsBody += 'Great job on the protein today! ' + user.proteinToday + ' protein so far today\n';
@@ -165,14 +178,14 @@ function motivateUserCallback(err, user) {
 	}
 
 	if (smsBody != '') {
-		console.log("Twilio.sendSms", user.phoneNumber, smsMessage);
-		Twilio.sendSms(user.phoneNumber, smsMessage);
+		console.log("Twilio.sendSms", user.phoneNumber, smsBody);
+		Twilio.sendSms(user.phoneNumber, smsBody);
 	}
 
 	// Now update the philips hue with the right color.
 	// First, figure out what the percentage is
 
-	var totalPercentage = (proteinPercentage + activityPercentage + waterPercentage) / 3;
+	var totalPercentage = (proteinPercentage + stepsPercentage) / 2;
 	var currentTime = new Date();
 	var seconds = currentTime.getTime();
 
@@ -219,7 +232,7 @@ function notificationsReceived(req, res) {
 
 		for (var i = 0; i < data.length; i++) {
 			console.log(data[i]);
-			updateUserData(data[i].ownerId, data[i].date, motivateUserCallback);
+			updateUserData(data[i].ownerId, motivateUserCallback);
 		}
 	});
 };
