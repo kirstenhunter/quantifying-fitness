@@ -61,13 +61,13 @@ function updateUserData(encodedId, calldate, callback) {
 							fitbit_oauth_getP(prefix + "/activities/date/" + date + '.json')
 						])
 						 .then(function(arrayOfResults) {
-						console.log(arrayOfResults);
 				    	
-				    	console.log(user.activityGoal);
 				    	food = JSON.parse(arrayOfResults[0]);
+				    	console.log(food);
 				    	water = food["summary"]["water"];
 				    	protein = food["summary"]["protein"]
 				    	activity = JSON.parse(arrayOfResults[1])["summary"]["caloriesOut"];
+				    	console.log(JSON.parse(arrayOfResults[1]));
 				    	previousactivity = user.lastactivity;
 
 						console.log("protein: " + protein + " / " + user.proteinGoal);
